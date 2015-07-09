@@ -16,4 +16,20 @@ defmodule TextTest do
     assert checkOp([1]) == nil
     assert checkOp(["hello", 2, %{d: 3}]) == nil
   end
+
+  test "checkSelection works well" do
+    catch_error checkSelection([1])
+    catch_error checkSelection(["hello", 2])
+    assert checkSelection([1, 2]) == nil
+    assert checkSelection([1, 2, 3]) == nil
+  end
+
+  test "append works well" do
+    assert append 1, [] == [1]
+    assert append 1, [2] == [3]
+    assert append "stian", ["peter"] == "peterstian"
+    assert append %{d: 1}, [%{d: 2}, 3] == [%{d: 3}, 3]
+    assert append nil, [1, 2] == [1, 2]
+    assert append 1, [2, 3] == [1, 2, 3]
+  end
 end

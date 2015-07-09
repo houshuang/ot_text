@@ -40,11 +40,27 @@ defmodule Text do
     if !(x > 0), do: raise "Skip components must be >0"
     checkOp rest
   end
-
   #---------------------------------------- 
 
-
+  def checkSelection([ selection1, selection2 | rest ]) 
+    when is_integer(selection1) and is_integer(selection2) do
+    nil
+  end
   
-end
-defmodule OtText do
+  # from makeAppend which returns a function
+  #---------------------------------------- 
+  def append(component, []), do: [ component ]
+  
+  def append(nil, acc), do: acc
+
+  def append(%{d: 0}, acc), do: acc
+
+  def append(%{d: x}, [ %{d: y} | rest ]), do: [ %{d: x + y} | rest ]
+
+  def append(x, [ y | rest ]) when is_integer(x) and is_integer(y), do: [ y + x | rest ]
+
+  def append(x, [ y | rest ]) when is_binary(x) and is_binary(y), do: [ y <> x | rest ]
+
+  def append(component, acc), do: [ component | acc ]
+  #---------------------------------------- 
 end
