@@ -88,4 +88,20 @@ defmodule Text do
     |> trim
     |> Enum.reverse
   end
+
+  def exportsApply(str, op) when is_binary(str) do
+    checkOp op
+    Enum.reduce(op, {str, []}, &applyOp/2)
+    |> elem(1)
+    |> Enum.reverse
+    |> IO.iodata_to_binary
+  end
+
+  mdef applyOp do
+    %{d: d}, {str, acc}                -> { String.slice(str, d, 999999), acc }
+    op, {str, acc} when is_binary(op)  -> { str, [ op | acc ] }
+    op, {str, acc} when is_integer(op) ->
+      if op > String.length(str), do: raise "The op is too long for this document"
+      { String.slice(str, op, 999999),  [ String.slice(str, 0, op) | acc ] }
+  end
 end

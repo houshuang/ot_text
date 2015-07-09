@@ -54,4 +54,9 @@ defmodule TextTest do
     assert exportsNormalize([3, 4, 5, "stian"]) == [12, "stian"]
     assert exportsNormalize([3, 4, 5, "stian", "peter"]) == [12, "stianpeter"]
   end
+
+  test "exportsApply" do
+    assert exportsApply("hello", [2, "hi", %{d: 1}, 2]) == "hehilo"
+    assert exportsApply("Stian Haklev", [%{d: 3}, %{d: 2}, "Peter", 3, "Vadim", 4]) == "Peter HaVadimklev"
+  end
 end
