@@ -58,15 +58,115 @@ defmodule Text do
     component, acc                                       -> [ component | acc ]
   end
 
+  #-------------------------------------------------------------------------------- 
   # from makeTake which returns a function
   # Take up to length n from the front of op. If n is -1, take the entire next
   # op component. If indivisableField == 'd', delete components won't be separated.
   # If indivisableField == 'i', insert components won't be separated.
   # idx (index into next component to take) and offset into component,
   # all start out at 0
-  # def take(n, indivisableField, op) do
-  #   ì
-  # end
+  def exportsTransform(op, otherOp, side) do
+    if side != "left" && side != "right", do: raise "Side must be left or right"
+
+    checkOp(op)
+    checkOp(otherOp)
+
+    state = {op, 0, 0, side}
+    { acc, state } = Enum.reduce(otherOp, {[], state}, &exportsTransformApply/2)
+    
+    acc = takeFinal(state, acc)
+    trim(acc)
+  end
+
+  #-------------------------------------------------------------------------------- 
+  def takeFinal(state = {op, idx, offset, side}, acc) do
+    { result, idx, offset } = take(state, -1)
+    if is_nil(result) do
+      acc
+    else
+      acc = append(acc, result)
+      takeFinal({op, idx, offset, side}, acc)
+    end
+  end
+
+  mdef exportsTransformApply do
+    x, {acc, state = {op, idx, offset, side}} when is_integer(x) ->
+      {{ result, idx, offset }, acc } = takeInteger(state, acc, x)
+      {acc, {op, idx, offset, side}}
+      
+    x, {acc, state = {op, idx, offset, side}} when is_binary(x) ->
+      if side == "left" do
+        if is_binary(peek(state)) do
+          { result, idx, offset } = take(state, -1)
+          acc = append(result, acc)
+        end
+      else
+        acc = append(String.length(x), acc)
+      end
+      {acc, {op, idx, offset, side}}
+        
+    %{d: d}, {acc, state = {op, idx, offset, side}} ->
+      {{ result, idx, offset }, acc } = takeInteger(state, acc, d)
+      {acc, {op, idx, offset, side}}
+      
+  end
+
+  mdef takeDelete do
+    state = {op, idx, offset, side}, acc, x when x > 0 ->
+      { result, idx, offset } = take(state, x, "i")
+      case result do
+        y when is_integer(y) -> x = x - y
+        y when is_binary(y) -> acc = append(y, acc)
+        %{d: y} -> x = x - y
+      end
+      takeDelete {op, idx, offset, side}, acc, x
+
+    state, acc, x -> {state, acc}
+  end
+
+  mdef takeInteger do
+    state = {op, idx, offset, side}, acc, x when x > 0 ->
+      { result, idx, offset } = take(state, x, "i")
+      acc = append(result, acc)
+      if is_binary(result), do: x = x - componentLength(result)
+      takeInteger {op, idx, offset, side}, acc, x
+
+    state, acc, x -> {state, acc}
+  end
+  
+  #-------------------------------------------------------------------------------- 
+  def take({op, idx, offset, side}, n, indivisableField \\ nil) do
+    if idx == length(op) do
+      if n = -1, do: nil, else: n
+    else
+      takeApply({Enum.at(op, idx), idx, offset}, n, indivisableField)
+    end
+  end
+
+  mdef takeApply do
+    state = {c, idx, offset}, n, indivisableField when is_integer(c) ->
+      if n == -1 || c - offset <= n do
+        {c - offset, idx + 1, 0}
+      else
+        {n, idx, offset + n}
+      end
+    state = {c, idx, offset}, n, indivisableField when is_binary(c) ->
+      if n == -1 || indivisableField == "i" || String.length(c) - offset <= n do
+        { String.slice(c, offset, 9999999), idx + 1, 0 }
+      else
+        { String.slice(c, offset, offset + n), idx, offset + n }
+      end
+    state = {%{d: d}, idx, offset}, n, indivisableField -> 
+      if n == 1 || indivisableField == "d" || d - offset <= n do
+        { %{d: d - offset }, idx + 1, 0 }
+      else
+        { %{d: n}, idx, offset + n }
+      end
+  end
+
+  def peek({op, idx, offset, side}), do: Enum.at(op, idx)
+  
+  #-------------------------------------------------------------------------------- 
 
   mdef componentLength do
     c when is_integer(c) -> c
