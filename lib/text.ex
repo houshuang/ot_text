@@ -14,9 +14,7 @@ defmodule Text do
   # Cursors are either a single number (which is the cursor position) or a pair of
   # [anchor, focus] (aka [start, end]). Be aware that end can be before start.
 
-  def exportsCreate(initial) when is_binary(initial) do
-    initial
-  end
+  def exportsCreate(initial) when is_binary(initial), do: initial
 
   # Check the operation is valid. Throws if not valid.
   #--------------------------------------------------------------------------------  
@@ -103,5 +101,46 @@ defmodule Text do
     op, {str, acc} when is_integer(op) ->
       if op > String.length(str), do: raise "The op is too long for this document"
       { String.slice(str, op, 999999),  [ String.slice(str, 0, op) | acc ] }
+  end
+
+  # c1, c2
+  # TODO: Hope I got the logic right, defintively could use some tests, if I knew
+  # what the desired result was
+  def exportsSelectionEq(c1, c2) do
+    c1 = take_first c1
+    c2 = take_first c2
+    [ c1_0, c1_1 | _ ] = c1
+    [ c2_0, c2_1 | _ ] = c2
+    c1 == c2 || ( !is_nil(c1_0) && !is_nil(c2_0) && c1_0 == c2_0 && c1_1 == c2_1 )
+  end
+
+  mdef take_first do
+    [x, y | _], _ when not is_nil(x) and x == y -> x
+    c -> c
+  end
+
+  def exportsTransformSelection(selection, op, isOwnOp) do
+    
+    if isOwnOp do
+    # Just track the position. We'll teleport the cursor to the end anyway.
+    # This works because text ops don't have any trailing skips at the end - so the last
+    # component is the last thing.
+      Enum.reduce(op, 0, &applyOwnSelection/2)
+    else
+      applySelection(selection, op)
+    end
+  end
+  
+  mdef applyOwnSelection do
+    c, acc when is_integer(c) -> acc + c
+    c, acc when is_binary(c)  -> acc + Enum.length(c)
+  end
+
+  mdef applySelection do
+    selection, op when is_integer(selection) -> transformPosition(selection, op)
+    [ sel0, sel1 | _ ]                       -> [ transformPosition(sel0), transformPosition(sel1), op ]
+  end
+
+  def transformPosition(cursor, op) do
   end
 end
