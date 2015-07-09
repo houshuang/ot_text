@@ -1,3 +1,4 @@
+# missing exports.compose, exports.transform, makeTake
 defmodule Text do
   import MultiDef
 
@@ -63,7 +64,6 @@ defmodule Text do
   # If indivisableField == 'i', insert components won't be separated.
   # idx (index into next component to take) and offset into component,
   # all start out at 0
-  #-------------------------------------------------------------------------------- 
   # def take(n, indivisableField, op) do
   #   ì
   # end
@@ -87,6 +87,7 @@ defmodule Text do
     |> Enum.reverse
   end
 
+  #-------------------------------------------------------------------------------- 
   def exportsApply(str, op) when is_binary(str) do
     checkOp op
     Enum.reduce(op, {str, []}, &applyOp/2)
@@ -102,25 +103,27 @@ defmodule Text do
       if op > String.length(str), do: raise "The op is too long for this document"
       { String.slice(str, op, 999999),  [ String.slice(str, 0, op) | acc ] }
   end
+  #-------------------------------------------------------------------------------- 
 
-  # c1, c2
-  # TODO: Hope I got the logic right, defintively could use some tests, if I knew
-  # what the desired result was
-  def exportsSelectionEq(c1, c2) do
-    c1 = take_first c1
-    c2 = take_first c2
-    [ c1_0, c1_1 | _ ] = c1
-    [ c2_0, c2_1 | _ ] = c2
-    c1 == c2 || ( !is_nil(c1_0) && !is_nil(c2_0) && c1_0 == c2_0 && c1_1 == c2_1 )
-  end
+  def transformPosition(cursor, op), do: transformPositionPrime(cursor, op, 0)
 
-  mdef take_first do
-    [x, y | _], _ when not is_nil(x) and x == y -> x
-    c -> c
+  mdef transformPositionPrime do
+    cursor, [], _ -> cursor
+    cursor, _, pos when cursor <= pos -> cursor
+
+    cursor, [op | rest], pos when is_integer(op) ->
+      if cursor <= (pos + op), do: cursor, else: transformPositionPrime(cursor, rest, pos + op)
+
+    cursor, [op | rest], pos when is_binary(op) ->
+      cl = String.length(op)
+      transformPositionPrime(cursor + cl, rest, pos + cl)
+
+    cursor, [%{d: d} | rest], pos ->
+      transformPositionPrime(cursor - min(d, cursor - pos), rest, pos)
   end
+  #-------------------------------------------------------------------------------- 
 
   def exportsTransformSelection(selection, op, isOwnOp) do
-    
     if isOwnOp do
     # Just track the position. We'll teleport the cursor to the end anyway.
     # This works because text ops don't have any trailing skips at the end - so the last
@@ -138,9 +141,24 @@ defmodule Text do
 
   mdef applySelection do
     selection, op when is_integer(selection) -> transformPosition(selection, op)
-    [ sel0, sel1 | _ ]                       -> [ transformPosition(sel0), transformPosition(sel1), op ]
+    [ sel0, sel1 | _ ], op                   -> [ transformPosition(sel0, op), transformPosition(sel1, op) ]
+  end
+  #-------------------------------------------------------------------------------- 
+
+  
+  # TODO: Hope I got the logic right, defintively could use some tests, if I knew
+  # what the desired result was
+  def exportsSelectionEq(c1, c2) do
+    c1 = take_first c1
+    c2 = take_first c2
+    [ c1_0, c1_1 | _ ] = c1
+    [ c2_0, c2_1 | _ ] = c2
+    c1 == c2 || ( !is_nil(c1_0) && !is_nil(c2_0) && c1_0 == c2_0 && c1_1 == c2_1 )
   end
 
-  def transformPosition(cursor, op) do
+  mdef take_first do
+    [x, y | _], _ when not is_nil(x) and x == y -> x
+    c -> c
   end
+
 end
