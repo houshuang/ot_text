@@ -27,6 +27,9 @@ defmodule OtText.Mixfile do
   #
   # Type `mix help deps` for more examples and options
   defp deps do
-    [{:amrita, github: "josephwilk/amrita"}]
+    [
+      {:amrita, github: "josephwilk/amrita"},
+      {:multidef, github: "pragdave/mdef"}
+    ]
   end
 end

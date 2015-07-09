@@ -1,4 +1,5 @@
 defmodule Text do
+  import MultiDef
 
   # Ops are lists of components which iterate over the document.
   # Components are either:
@@ -18,49 +19,67 @@ defmodule Text do
   end
 
   # Check the operation is valid. Throws if not valid.
-  #---------------------------------------- 
-  def checkOp([]), do: nil
+  #--------------------------------------------------------------------------------  
+  mdef checkOp do
+    [] -> nil
 
-  def checkOp([ %{d: x} | rest ]) when is_integer(x) do
-    if !(x > 0), do: raise "Object components must be deletes of size > 0"
-    checkOp rest
-  end
+    [ %{d: x} | rest ] when is_integer(x) ->
+      if !(x > 0), do: raise "Object components must be deletes of size > 0"
+      checkOp rest
 
-  def checkOp([ x | rest ]) when is_binary(x) do
-    if !(String.length(x) > 0), do: raise "Inserts cannot be empty" 
-    checkOp rest
-  end
+    [ x | rest ] when is_binary(x) ->
+      if !(String.length(x) > 0), do: raise "Inserts cannot be empty" 
+      checkOp rest
 
-  def checkOp([ x, y | rest ]) when is_integer(x) and is_integer(y) do
-    raise "Adjacent skip components should be combined"
-    checkOp rest
-  end
+    [ x, y | rest ] when is_integer(x) and is_integer(y) ->
+      raise "Adjacent skip components should be combined"
+      checkOp rest
 
-  def checkOp([ x | rest ]) when is_integer(x) do
-    if !(x > 0), do: raise "Skip components must be >0"
-    checkOp rest
+    [ x | rest ] when is_integer(x) ->
+      if !(x > 0), do: raise "Skip components must be >0"
+      checkOp rest
   end
-  #---------------------------------------- 
+  #--------------------------------------------------------------------------------  
 
-  def checkSelection([ selection1, selection2 | rest ]) 
-    when is_integer(selection1) and is_integer(selection2) do
-    nil
-  end
-  
+  mdef checkSelection do
+    [ selection1, selection2 | _ ] 
+      when is_integer(selection1) and is_integer(selection2) -> nil
+
+    x when is_integer(x) -> nil
+  end 
+
   # from makeAppend which returns a function
-  #---------------------------------------- 
-  def append(component, []), do: [ component ]
-  
-  def append(nil, acc), do: acc
+  mdef append do
+    component, []                                        -> [ component ]
+    nil, acc                                             -> acc
+    %{d: 0}, acc                                         -> acc
+    %{d: x}, [ %{d: y} | rest ]                          -> [ %{d: x + y} | rest ]
+    x, [ y | rest ] when is_integer(x) and is_integer(y) -> [ y + x | rest ]
+    x, [ y | rest ] when is_binary(x) and is_binary(y)   -> [ y <> x | rest ]
+    component, acc                                       -> [ component | acc ]
+  end
 
-  def append(%{d: 0}, acc), do: acc
+  # from makeTake which returns a function
+  # Take up to length n from the front of op. If n is -1, take the entire next
+  # op component. If indivisableField == 'd', delete components won't be separated.
+  # If indivisableField == 'i', insert components won't be separated.
+  # idx (index into next component to take) and offset into component,
+  # all start out at 0
+  #-------------------------------------------------------------------------------- 
+  # def take(n, indivisableField, op) do
+  #   ì
+  # end
 
-  def append(%{d: x}, [ %{d: y} | rest ]), do: [ %{d: x + y} | rest ]
+  mdef componentLength do
+    c when is_integer(c) -> c
+    c when is_binary(c)  -> String.length(c)
+    c when is_list(c)    -> length(c)
+  end
 
-  def append(x, [ y | rest ]) when is_integer(x) and is_integer(y), do: [ y + x | rest ]
+  mdef trim do
+    [ x | rest ] when is_integer(x) -> rest
+    x                               -> x
+  end
 
-  def append(x, [ y | rest ]) when is_binary(x) and is_binary(y), do: [ y <> x | rest ]
 
-  def append(component, acc), do: [ component | acc ]
-  #---------------------------------------- 
 end
