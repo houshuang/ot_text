@@ -44,4 +44,14 @@ defmodule TextTest do
     assert trim([1, 2]) == [2]
     assert trim(1) == 1
   end
+
+  test "exportsNormalize" do
+    assert exportsNormalize(["sitan"]) == ["sitan"]
+    assert exportsNormalize(["sitan", 1]) == ["sitan"]
+    assert exportsNormalize(["sitan", nil, 1]) == ["sitan"]
+    assert exportsNormalize([4, "stian", %{d: 0}, 3]) == [4, "stian"] 
+    assert exportsNormalize([4, "peter", %{d: 4}, %{d: 3}, 4]) == [4, "peter", %{d: 7}]
+    assert exportsNormalize([3, 4, 5, "stian"]) == [12, "stian"]
+    assert exportsNormalize([3, 4, 5, "stian", "peter"]) == [12, "stianpeter"]
+  end
 end

@@ -76,10 +76,16 @@ defmodule Text do
     c when is_list(c)    -> length(c)
   end
 
+  # Trim any excess skips from the end of an operation.
+  # There should only be at most one, because the operation was made with append.
   mdef trim do
     [ x | rest ] when is_integer(x) -> rest
     x                               -> x
   end
 
-
+  def exportsNormalize(op) do
+    Enum.reduce(op, [], &append/2)
+    |> trim
+    |> Enum.reverse
+  end
 end
