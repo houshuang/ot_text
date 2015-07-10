@@ -1,4 +1,3 @@
-# missing exports.compose, exports.transform, makeTake
 defmodule Text do
   import MultiDef
 
@@ -59,19 +58,13 @@ defmodule Text do
   end
 
   #-------------------------------------------------------------------------------- 
-  # from makeTake which returns a function
-  # Take up to length n from the front of op. If n is -1, take the entire next
-  # op component. If indivisableField == 'd', delete components won't be separated.
-  # If indivisableField == 'i', insert components won't be separated.
-  # idx (index into next component to take) and offset into component,
-  # all start out at 0
   def exportsTransform(op, otherOp, side) do
     if side != "left" && side != "right", do: raise "Side must be left or right"
 
     checkOp(op)
     checkOp(otherOp)
 
-    state = {op, 0, 0, side}
+    state = {op, 0, 0, side} # { op, idx, offset, side }
     { acc, state } = Enum.reduce(otherOp, {[], state}, &exportsTransformApply/2)
     
     acc = takeFinal(state, acc)
@@ -108,7 +101,6 @@ defmodule Text do
     %{d: d}, {acc, state = {op, idx, offset, side}} ->
       {{ result, idx, offset }, acc } = takeInteger(state, acc, d)
       {acc, {op, idx, offset, side}}
-      
   end
 
   mdef takeDelete do
@@ -167,7 +159,55 @@ defmodule Text do
   def peek({op, idx, offset, side}), do: Enum.at(op, idx)
   
   #-------------------------------------------------------------------------------- 
+  def exportsCompose(op1, op2) do
+    checkOp(op1)
+    checkOp(op2)
 
+    state = { Enum.at(op1, 0), 0, 0, "" }
+    { acc, state } = Enum.reduce(op2, {[], state}, &exportsComposeApply/2)
+    
+    acc = takeFinal(state, acc)
+    trim(acc)
+  end
+
+  mdef exportsComposeApply do
+    x, {acc, state = {op, idx, offset, side}} when is_integer(x) ->
+      {{ result, idx, offset }, acc } = takeInteger(state, acc, x)
+      {acc, {op, idx, offset, side}}
+    x, {acc, state = {op, idx, offset, side}} when is_binary(x) ->
+      acc = append(x, acc)
+      {acc, {op, idx, offset, side}}
+    %{d: x}, {acc, state = {op, idx, offset, side}} ->
+      {{ result, idx, offset }, acc } = takeComposeDelete(state, acc, x)
+      {acc, {op, idx, offset, side}}
+  end
+
+
+  mdef takeComposeDelete do
+    state = {op, idx, offset, side}, acc, x when x > 0 ->
+      { result, idx, offset } = take(state, x, "d")
+      case result do
+        y when is_integer(y) -> 
+          x = x - y
+          acc = append(%{d: result}, acc)
+        y when is_binary(y) -> x = x - String.length(y)
+        %{d: y} -> acc = append(result, acc)
+      end
+      takeComposeDelete {op, idx, offset, side}, acc, x
+
+    state, acc, x -> {state, acc}
+  end
+
+  mdef takeComposeInteger do
+    state = {op, idx, offset, side}, acc, x when x > 0 ->
+      { result, idx, offset } = take(state, x, "d")
+      acc = append(result, acc)
+      if is_map(result), do: x = x - componentLength(result)
+      takeComposeInteger {op, idx, offset, side}, acc, x
+
+    state, acc, x -> {state, acc}
+  end
+  #-------------------------------------------------------------------------------- 
   mdef componentLength do
     c when is_integer(c) -> c
     c when is_binary(c)  -> String.length(c)
