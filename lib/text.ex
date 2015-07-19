@@ -14,6 +14,17 @@ defmodule Text do
   # Cursors are either a single number (which is the cursor position) or a pair of
   # [anchor, focus] (aka [start, end]). Be aware that end can be before start.
 
+  # Exported functions
+
+  # apply/2          : check     
+  # normalize/1      : check          
+  # transform/3             
+  # compose/2            
+  # selectionEq/2        
+  # transformSelection/3
+  # create/1         : check
+  # take/3
+
   def create(initial) when is_binary(initial), do: initial
 
   # Check the operation is valid. Throws if not valid.
@@ -66,7 +77,7 @@ defmodule Text do
     checkOp(op)
     checkOp(otherOp)
 
-    state = %{op: op, idx: 0, offset: 0, side: side} 
+    state = %{ op: op, idx: 0, offset: 0, side: side} 
     { state, acc } = Enum.reduce(otherOp, {state, []}, &transformApply/2)
     
     acc = takeFinal({state, acc})
@@ -77,6 +88,7 @@ defmodule Text do
 
   mdefp transformApply do
     x, {state, acc} when is_integer(x) ->
+      IO.inspect(state)
       takeInteger({state, acc}, x)
       
     x, {state, acc} when is_binary(x) ->
@@ -121,6 +133,7 @@ defmodule Text do
 
   mdefp takeInteger do
     {state, acc}, x when x > 0 ->
+      IO.inspect(state)
       { result, idx, offset } = take(state, x, "i")
       acc = append(result, acc)
       if is_binary(result), do: x = x - componentLength(result)
@@ -130,32 +143,31 @@ defmodule Text do
   end
   
   #-------------------------------------------------------------------------------- 
-  def take(state = %{op: op, idx: idx, offset: offset }, n, 
-    indivisableField \\ nil) do
-    IO.inspect(state)
+  def take(state = %{op: op, idx: idx, offset: offset}, 
+    n, indivisableField \\ nil) do
 
     if idx == length(op) do
       res = if n == -1, do: nil, else: n
       { res, idx, offset }
     else
-      takeApply(%{ state | op: Enum.at(op, idx) }, n, indivisableField)
+      takeApply(Map.put(state, :c, Enum.at(op, idx)), n, indivisableField)
     end
   end
 
   mdefp takeApply do
-    %{op: c, idx: idx, offset: offset}, n, indivisableField when is_integer(c) ->
+    %{c: c, idx: idx, offset: offset}, n, indivisableField when is_integer(c) ->
       if n == -1 || c - offset <= n do
         {c - offset, idx + 1, 0}
       else
         {n, idx, offset + n}
       end
-    %{op: c, idx: idx, offset: offset}, n, indivisableField when is_binary(c) ->
+    %{c: c, idx: idx, offset: offset}, n, indivisableField when is_binary(c) ->
       if n == -1 || indivisableField == "i" || String.length(c) - offset <= n do
         { String.slice(c, offset, 9999999), idx + 1, 0 }
       else
         { String.slice(c, offset, n), idx, offset + n }
       end
-    %{ op: %{d: d}, idx: idx, offset: offset}, n, indivisableField -> 
+    %{c: %{d: d}, idx: idx, offset: offset}, n, indivisableField -> 
       if n == -1 || indivisableField == "d" || d - offset <= n do
         { %{d: d - offset }, idx + 1, 0 }
       else
@@ -170,16 +182,16 @@ defmodule Text do
     checkOp(op1)
     checkOp(op2)
 
-    state = %{ op: Enum.at(op1, 0), idx: 0, offset: 0 }
+    state = %{ op: op1, idx: 0, offset: 0 } 
+      
     { state, acc } = Enum.reduce(op2, {state, []}, &composeApply/2)
-    
-    acc = takeFinal({state, acc})
-    trim(acc)
+    takeFinal({state, acc})
+    |> Enum.reverse
   end
 
   mdefp composeApply do
     x, {state, acc} when is_integer(x) ->
-      takeInteger({ state, acc }, x)
+      takeComposeInteger({ state, acc }, x)
     x, {state, acc} when is_binary(x) ->
       acc = append(x, acc)
       { state, acc }
@@ -204,19 +216,20 @@ defmodule Text do
   end
 
   mdefp takeComposeInteger do
-    state = {op, idx, offset, side}, acc, x when x > 0 ->
+    {state, acc}, x when x > 0 ->
       { result, idx, offset } = take(state, x, "d")
       acc = append(result, acc)
-      if is_map(result), do: x = x - componentLength(result)
-      takeComposeInteger {op, idx, offset, side}, acc, x
+      if !is_map(result), do: x = x - componentLength(result)
+      takeComposeInteger {%{ state | idx: idx, offset: offset}, acc}, x
 
-    state, acc, x -> {state, acc}
+    {state, acc}, x -> {state, acc}
   end
   #-------------------------------------------------------------------------------- 
   mdefp componentLength do
-    c when is_integer(c) -> c
-    c when is_binary(c)  -> String.length(c)
-    c when is_list(c)    -> length(c)
+    c when is_integer(c)    -> c
+    c when is_binary(c)     -> String.length(c)
+    c when is_list(c)       -> length(c)
+    %{d: c} -> c
   end
 
   # Trim any excess skips from the end of an operation.
@@ -235,10 +248,11 @@ defmodule Text do
   #-------------------------------------------------------------------------------- 
   def apply(str, op) when is_binary(str) do
     checkOp op
-    Enum.reduce(op, {str, []}, &applyOp/2)
-    |> elem(1)
+    {str, acc} = Enum.reduce(op, {str, []}, &applyOp/2)
+    acc = acc
     |> Enum.reverse
     |> IO.iodata_to_binary
+    acc <> str
   end
 
   mdefp applyOp do
