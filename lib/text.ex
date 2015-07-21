@@ -19,7 +19,7 @@ defmodule Text do
   # apply/2          : check     
   # normalize/1      : check          
   # transform/3             
-  # compose/2            
+  # compose/2        : check           
   # selectionEq/2        
   # transformSelection/3
   # create/1         : check
@@ -79,7 +79,6 @@ defmodule Text do
 
     state = %{ op: op, idx: 0, offset: 0, side: side} 
     { state, acc } = Enum.reduce(otherOp, {state, []}, &transformApply/2)
-    
     acc = takeFinal({state, acc})
     |> Enum.reverse
     |> trim
@@ -88,7 +87,6 @@ defmodule Text do
 
   mdefp transformApply do
     x, {state, acc} when is_integer(x) ->
-      IO.inspect(state)
       takeInteger({state, acc}, x)
       
     x, {state, acc} when is_binary(x) ->
@@ -133,10 +131,9 @@ defmodule Text do
 
   mdefp takeInteger do
     {state, acc}, x when x > 0 ->
-      IO.inspect(state)
       { result, idx, offset } = take(state, x, "i")
       acc = append(result, acc)
-      if is_binary(result), do: x = x - componentLength(result)
+      if !is_binary(result), do: x = x - componentLength(result)
       takeInteger { %{ state| idx: idx, offset: offset}, acc }, x
 
     {state, acc}, x -> {state, acc}
@@ -187,6 +184,7 @@ defmodule Text do
     { state, acc } = Enum.reduce(op2, {state, []}, &composeApply/2)
     takeFinal({state, acc})
     |> Enum.reverse
+    |> trim
   end
 
   mdefp composeApply do
@@ -234,7 +232,14 @@ defmodule Text do
 
   # Trim any excess skips from the end of an operation.
   # There should only be at most one, because the operation was made with append.
-  mdefp trim do
+  defp trim(x) do
+    x
+    |> Enum.reverse
+    |> strip_if_number
+    |> Enum.reverse
+  end
+
+  mdefp strip_if_number do
     [ x | rest ] when is_integer(x) -> rest
     x                               -> x
   end
