@@ -1,6 +1,10 @@
 defmodule Text do
   import MultiDef
 
+  # TODO:
+  # Text.transform([2, %{d: 2}], [1, "abc"], "left")
+  # should be: [ 5, { d: 2 } --- is: [ 2, { d: 2 } ] ]
+
   # Ops are lists of components which iterate over the document.
   # Components are either:
   #   A number N: Skip N characters in the original document
@@ -79,9 +83,9 @@ defmodule Text do
     checkOp(op)
     checkOp(otherOp)
 
-    state = %{ op: op, idx: 0, offset: 0, side: side}
-    { state, acc } = Enum.reduce(otherOp, {state, []}, &transformApply/2)
-    acc = takeFinal({state, acc})
+    state = %{ op: op, idx: 0, offset: 0, side: side }
+    Enum.reduce(otherOp, {state, []}, &transformApply/2)
+    |> takeFinal
     |> Enum.reverse
     |> trim
   end
@@ -98,25 +102,14 @@ defmodule Text do
           state = %{ state | idx: idx, offset: offset }
           acc = append(result, acc)
         end
-      else
-        acc = append(String.length(x), acc)
       end
+      acc = append(String.length(x), acc)
       {state, acc}
 
     %{d: d}, {state, acc} ->
       takeDelete({state, acc}, d)
   end
   #--------------------------------------------------------------------------------
-
-  defp takeFinal({state, acc}) do
-    { result, idx, offset } =take(state, -1)
-    if is_nil(result) do
-      acc
-    else
-      acc = append(result, acc)
-      takeFinal { %{ state | idx: idx, offset: offset}, acc }
-    end
-  end
 
   mdefp takeDelete do
     {state, acc}, x when x > 0 ->
@@ -139,6 +132,16 @@ defmodule Text do
       takeInteger { %{ state| idx: idx, offset: offset}, acc }, x
 
     {state, acc}, x -> {state, acc}
+  end
+
+  defp takeFinal({state, acc}) do
+    { result, idx, offset } = take(state, -1)
+    if is_nil(result) do
+      acc
+    else
+      acc = append(result, acc)
+      takeFinal { %{ state | idx: idx, offset: offset}, acc }
+    end
   end
 
   #--------------------------------------------------------------------------------
