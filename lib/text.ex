@@ -29,7 +29,7 @@ defmodule Text do
   # create/1         : check
   # take/3
 
-  def create(initial) when is_binary(initial), do: initial
+  def create(initial \\ "") when is_binary(initial), do: initial
 
   # Check the operation is valid. Throws if not valid.
   #--------------------------------------------------------------------------------
@@ -317,6 +317,11 @@ defmodule Text do
 
   # TODO: Hope I got the logic right, defpintively could use some tests, if I knew
   # what the desired result was
+
+  def selectionEq(c1, c2) when is_integer(c1) and is_integer(c2) do
+    c1 == c2
+  end
+
   def selectionEq(c1, c2) do
     c1 = take_first c1
     c2 = take_first c2

@@ -14,7 +14,7 @@ defmodule OtText.Mixfile do
   #
   # Type `mix help compile.app` for more information
   def application do
-    [applications: [:logger]]
+    [applications: [:logger, :cowboy, :plug]]
   end
 
   # Dependencies can be Hex packages:
@@ -29,7 +29,10 @@ defmodule OtText.Mixfile do
   defp deps do
     [
       {:amrita, github: "josephwilk/amrita"},
-      {:multidef, github: "pragdave/mdef"}
+      {:multidef, github: "pragdave/mdef"},
+      {:cowboy, "~> 1.0.0"},
+      {:plug, "~> 0.13"},
+      {:poison, "~> 1.4.0"},
     ]
   end
 end
